@@ -10,7 +10,7 @@ import { nanoid } from 'nanoid'
 import config from './config'
 import Html from '../client/html'
 
-const { readFile, writeFile } = require('fs').promises
+const { readFile, writeFile, readdir } = require('fs').promises
 require('colors')
 
 let Root
@@ -36,6 +36,11 @@ const newTaskTemplate = {
 }
 
 const statusList = ['done', 'new', 'in progress', 'blocked']
+const timeSpans = {
+  day: 1000 * 60 * 60 * 24,
+  week: 7 * 1000 * 60 * 60 * 24,
+  month: 30 * 1000 * 60 * 60 * 24
+}
 
 function writeTask(category, list) {
   writeFile(`${__dirname}/data/${category}.json`, JSON.stringify(list), 'utf8')
@@ -45,7 +50,7 @@ function getCategoryFile(category) {
   return readFile(`${__dirname}/data/${category}.json`, 'utf8')
 }
 
-function updateTaskList(taskListString, id, category, payload) {
+function updateTaskList(taskListString = '[]', id = 'id', category = '', payload = {}) {
   let updatedTask = {}
   const updatedList = JSON.parse(taskListString).map((task) => {
     if (task.taskId === id) {
@@ -56,7 +61,7 @@ function updateTaskList(taskListString, id, category, payload) {
   })
   writeTask(category, updatedList)
   return {
-    list: updatedList,
+    list: updatedList, // Это не используется в коде, нигде. Потому что.
     task: updatedTask
   }
 }
@@ -93,6 +98,33 @@ server.get('/api/v1/tasks/:category', async (req, res) => {
     })
     .catch(() => [])
   res.json(data)
+})
+
+server.get('/api/v1/tasks/:category/:timespan', async (req, res) => {
+  const { category, timespan } = req.params
+  const data = await getCategoryFile(category)
+    .then((result) => {
+      const del = '_isDeleted'
+      const crtAt = '_createdAt'
+      return JSON.parse(result)
+        .filter((task) => !task[del] && task[crtAt] + timeSpans[timespan] > +new Date())
+        .map((filteredTask) => {
+          return removeTechFields(filteredTask)
+        })
+    })
+    .catch(() => [])
+  res.json(data)
+})
+
+server.get('/api/v1/categories', async (req, res) => {
+  const categories = await readdir(`${__dirname}/data`)
+  const filteredCategories = categories.reduce((acc, cat) => {
+    if (cat[0] !== '.') {
+      return [...acc, cat.slice(0, -5)]
+    }
+    return acc
+  }, [])
+  res.json(filteredCategories)
 })
 
 server.post('/api/v1/tasks/:category', (req, res) => {
