@@ -41,6 +41,35 @@ function writeTask(category, list) {
   writeFile(`${__dirname}/data/${category}.json`, JSON.stringify(list), 'utf8')
 }
 
+function getCategoryFile(category) {
+  return readFile(`${__dirname}/data/${category}.json`, 'utf8')
+}
+
+function updateTaskList(taskListString, id, category, payload) {
+  let updatedTask = {}
+  const updatedList = JSON.parse(taskListString).map((task) => {
+    if (task.taskId === id) {
+      updatedTask = { ...task, ...payload }
+      return updatedTask
+    }
+    return task
+  })
+  writeTask(category, updatedList)
+  return {
+    list: updatedList,
+    task: updatedTask
+  }
+}
+
+function removeTechFields(filteredTask) {
+  return Object.keys(filteredTask).reduce((acc, rec) => {
+    if (rec[0] !== '_') {
+      return { ...acc, [rec]: filteredTask[rec] }
+    }
+    return acc
+  }, {})
+}
+
 const middleware = [
   cors(),
   express.static(path.resolve(__dirname, '../dist/assets')),
@@ -53,18 +82,13 @@ middleware.forEach((it) => server.use(it))
 
 server.get('/api/v1/tasks/:category', async (req, res) => {
   const { category } = req.params
-  const data = await readFile(`${__dirname}/data/${category}.json`, { encoding: 'utf8' })
+  const data = await getCategoryFile(category)
     .then((result) => {
       const del = '_isDeleted'
       return JSON.parse(result)
         .filter((task) => !task[del])
         .map((filteredTask) => {
-          return Object.keys(filteredTask).reduce((acc, rec) => {
-            if (rec[0] !== '_') {
-              return { ...acc, [rec]: filteredTask[rec] }
-            }
-            return acc
-          }, {})
+          return removeTechFields(filteredTask)
         })
     })
     .catch(() => [])
@@ -80,7 +104,7 @@ server.post('/api/v1/tasks/:category', (req, res) => {
     taskId: nanoid(),
     _createdAt: +new Date()
   }
-  readFile(`${__dirname}/data/${category}.json`, 'utf8')
+  getCategoryFile(category)
     .then((result) => {
       const taskList = JSON.parse(result)
       writeTask(category, [...taskList, newTask])
@@ -96,19 +120,12 @@ server.patch('/api/v1/tasks/:category/:id', async (req, res) => {
   const { status } = req.body
   if (statusList.includes(status)) {
     let updatedTask = {}
-    await readFile(`${__dirname}/data/${category}.json`, 'utf8')
+    await getCategoryFile(category)
       .then((result) => {
-        const updatedTaskList = JSON.parse(result).map((task) => {
-          if (task.taskId === id) {
-            updatedTask = { ...task, status }
-            return updatedTask
-          }
-          return task
-        })
-        writeTask(category, updatedTaskList)
+        updatedTask = updateTaskList(result, id, category, { status }).task
       })
       .catch((err) => err)
-    res.json(updatedTask)
+    res.json(removeTechFields(updatedTask))
   } else {
     res.status(501).json({
       status: 'error',
@@ -119,15 +136,12 @@ server.patch('/api/v1/tasks/:category/:id', async (req, res) => {
 
 server.delete('/api/v1/tasks/:category/:id', async (req, res) => {
   const { category, id } = req.params
-  await readFile(`${__dirname}/data/${category}.json`, 'utf8')
+  await getCategoryFile(category)
     .then((result) => {
-      const tasksList = JSON.parse(result).map((task) => {
-        if (task.taskId === id) {
-          return { ...task, _isDeleted: true, _deletedAt: +new Date() }
-        }
-        return task
+      return updateTaskList(result, id, category, {
+        _isDeleted: true,
+        _deletedAt: +new Date()
       })
-      writeTask(category, tasksList)
     })
     .catch((err) => err)
   res.send('Task deleted')
