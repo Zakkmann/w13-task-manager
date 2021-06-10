@@ -100,7 +100,7 @@ server.patch('/api/v1/tasks/:category/:id', async (req, res) => {
       .then((result) => {
         const updatedTaskList = JSON.parse(result).map((task) => {
           if (task.taskId === id) {
-            updatedTask = {...task, status}
+            updatedTask = { ...task, status }
             return updatedTask
           }
           return task
@@ -110,8 +110,27 @@ server.patch('/api/v1/tasks/:category/:id', async (req, res) => {
       .catch((err) => err)
     res.json(updatedTask)
   } else {
-    res.status(501).json({"status": "error", "message": "incorrect status"})
+    res.status(501).json({
+      status: 'error',
+      message: 'incorrect status'
+    })
   }
+})
+
+server.delete('/api/v1/tasks/:category/:id', async (req, res) => {
+  const { category, id } = req.params
+  await readFile(`${__dirname}/data/${category}.json`, 'utf8')
+    .then((result) => {
+      const tasksList = JSON.parse(result).map((task) => {
+        if (task.taskId === id) {
+          return { ...task, _isDeleted: true, _deletedAt: +new Date() }
+        }
+        return task
+      })
+      writeTask(category, tasksList)
+    })
+    .catch((err) => err)
+  res.send('Task deleted')
 })
 
 server.use('/api/', (req, res) => {
