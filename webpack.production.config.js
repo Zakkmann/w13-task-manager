@@ -7,8 +7,8 @@ const MiniCssExtractPlugin = require('mini-css-extract-plugin')
 const CopyWebpackPlugin = require('copy-webpack-plugin')
 const GitRevisionPlugin = require('git-revision-webpack-plugin')
 const StringReplacePlugin = require('string-replace-webpack-plugin')
-const OptimizeCSSAssetsPlugin = require('optimize-css-assets-webpack-plugin')
-const TerserJSPlugin = require('terser-webpack-plugin')
+// const OptimizeCSSAssetsPlugin = require('optimize-css-assets-webpack-plugin')
+// const TerserJSPlugin = require('terser-webpack-plugin')
 // const SentryWebpackPlugin = require('@sentry/webpack-plugin')
 
 const { v4: uuidv4 } = require('uuid')
@@ -22,16 +22,7 @@ console.log(date - (date % (1000 * 60 * 30)))
 
 const config = {
   optimization: {
-    minimize: true,
-    minimizer: [
-      new TerserJSPlugin({ parallel: true }),
-      new OptimizeCSSAssetsPlugin({
-        cssProcessor: require('cssnano'),
-        cssProcessorPluginOptions: {
-          preset: ['default', { discardComments: { removeAll: true } }]
-        }
-      })
-    ]
+    minimize: true
   },
   entry: {
     main: './main.js'
