@@ -1,4 +1,5 @@
 const GET_TASKS = 'task-manager/tasks/GET_TASKS'
+const CHANGE_STATUS = 'task-manager/tasks/CHANGE_STATUS'
 
 const initialState = {
   tasks: {}
@@ -6,7 +7,8 @@ const initialState = {
 
 export default (state = initialState, action) => {
   switch (action.type) {
-    case GET_TASKS: {
+    case GET_TASKS:
+    case CHANGE_STATUS: {
       return {
         ...state,
         tasks: action.response
@@ -35,5 +37,36 @@ export function getTaskFromServer(category) {
       .catch((err) => {
         console.log(err)
       })
+  }
+}
+// {id:{}} ...id.status
+// const store = {
+//   router: connectRouter(history),
+//   tasks: {
+//     tasks: {}
+//   },
+//   auth: {}
+// }
+export function setStatus(id, category, status) {
+  return (dispatch, getState) => {
+    const store = getState()
+    const objRoot = store.tasks.tasks
+    const changeStatusInProgress = {...objRoot, [id]: {...objRoot[id], status}}
+    fetch(`/api/v1/tasks/${category}/${id}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        status
+      })
+    })
+      .then(() => {
+        dispatch({
+          type: CHANGE_STATUS,
+          response: changeStatusInProgress
+        })
+      })
+      .catch((err) => console.log(err))
   }
 }
